@@ -9,7 +9,7 @@
 
 #include "mbed.h"
 
-#include "blue.h"
+#include "myBlue.h"
 #include "jrs-thread.h"
 #include "Morse.h"
 
@@ -26,7 +26,7 @@ int main()
     Morse morse(led1);
     morse.puts("HI");
 
-    blue_init();
+    myblue_init();
     jrs_start_thread();
 
     usb.printf("[main] starting event queue\r\n");
