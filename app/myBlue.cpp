@@ -30,6 +30,8 @@ static float *A;
 static float *B;
 static uint8_t *operatorAB;
 static float *result;
+
+static float _result;
 static uint8_t resultBytes[sizeof(float)];
 
  ReadWriteGattCharacteristic<float> readWriteA(floatAUUID, A);
@@ -51,7 +53,7 @@ static void blue_characteristic_written(const GattWriteCallbackParams *params)
 
     //If A is written
     if (params->handle == readWriteA.getValueHandle())
-     {
+     {  
         usb.printf("[blue] A value written\r\n");
     }
 
@@ -78,17 +80,17 @@ static void blue_characteristic_written(const GattWriteCallbackParams *params)
 
     if (*operatorAB == 0)
     {
-        *result = *A+*B;
+        _result = *A+*B;
     }
     
     if(*operatorAB == 1)
     {
-        *result = *A-*B;
+        _result = *A-*B;
     }
 
     if(*operatorAB == 2)
     {
-        *result = *A * *B;
+        _result = *A * *B;
     }
 
     if(*operatorAB == 3)
@@ -98,25 +100,25 @@ static void blue_characteristic_written(const GattWriteCallbackParams *params)
         }
         else
         {
-            *result = *A / *B;
+            _result = *A / *B;
         }
     }
 
     if(*operatorAB == 4)
     {
-        *result = pow(*A, *B); 
+        _result = pow(*A, *B); 
     }
 
     if(*operatorAB == 5)
     {
         if(*B == 0.0f)
            BLE::Instance().shutdown();
-        *result = pow(*A, 1.0f/ *B);
+        _result = pow(*A, 1.0f/ *B);
     }
          
 
-    *(float*)(resultBytes) = *result;
-    BLE::Instance().gattServer().write(readResult.getValueHandle(), resultBytes,sizeof(*result));
+    *(float*)(resultBytes) = _result;
+    BLE::Instance().gattServer().write(readResult.getValueHandle(), resultBytes,sizeof(resultBytes));
 
 
 }
