@@ -11,7 +11,7 @@
 #include <events/mbed_events.h>
 
 #include "math.h"
-
+#include "stdlib.h"
 
 
 static const char blue_device_name[] = "MyCalc";
@@ -26,20 +26,24 @@ uint16_t serviceUUID = 0xA004;
 static const uint16_t uuid16_list[]        = {floatAUUID, floatBUUID, operatorUUID, resultUUID};
 
 // Set Up custom Characteristics
-static float *A;
-static float *B;
-static uint8_t *operatorAB;
-static float *result;
+static char *A_char;
+static char *B_char;
+static uint8_t  operatorAB;
+
+
+static float A;
+static float B;
 
 static float _result;
-static uint8_t resultBytes[sizeof(float)];
+static char result_char[6];
+static uint8_t resultBytes[sizeof(result_char)];
 
- ReadWriteGattCharacteristic<float> readWriteA(floatAUUID, A);
- ReadWriteGattCharacteristic<float> readWriteB(floatBUUID, B);
+ ReadWriteArrayGattCharacteristic<char,5> readWriteA(floatAUUID, A_char);
+ ReadWriteArrayGattCharacteristic<char,5> readWriteB(floatBUUID, B_char);
 
- WriteOnlyGattCharacteristic<uint8_t> writeOperator(operatorUUID, operatorAB);
+ WriteOnlyGattCharacteristic<uint8_t> writeOperator(operatorUUID, &operatorAB);
 
- ReadOnlyGattCharacteristic<float> readResult(resultUUID, result);
+ ReadOnlyArrayGattCharacteristic<char,20> readResult(resultUUID, result_char);
 
  
 static void blue_connected(const Gap::ConnectionCallbackParams_t *params)
@@ -54,19 +58,46 @@ static void blue_characteristic_written(const GattWriteCallbackParams *params)
     //If A is written
     if (params->handle == readWriteA.getValueHandle())
      {  
+		  char buffer_A[50];
         usb.printf("[blue] A value written\r\n");
+        
+      
+        memcpy(buffer_A, params->data, params->len);
+        
+		buffer_A[params->len] = '\0';
+		
+        usb.printf(  "%s \r\n", buffer_A );
+        
+        A= atof(buffer_A);
+        usb.printf("A %f \r\n",A);
+        
+        
     }
 
     //If B is written
     if(params->handle == readWriteB.getValueHandle())
     {
+			  char buffer_B[50];
         usb.printf("[blue] B value written\r\n");
+        
+        memcpy(buffer_B, params->data, params->len);
+       
+       buffer_B[params->len] = '\0';
+        
+        
+        usb.printf(  "%s \r\n", buffer_B );
+        
+        B= atof(buffer_B);
     }
 
     //If operator is written
     if(params-> handle == writeOperator.getValueHandle())
     {
         usb.printf("[blue] operator value written\r\n");
+              
+        operatorAB = params->data[0];       
+        
+        usb.printf("Op: %i \r\n", operatorAB); 
     }
 
 
@@ -78,47 +109,57 @@ static void blue_characteristic_written(const GattWriteCallbackParams *params)
     //4 ^^
     //5 sqrt
 
-    if (*operatorAB == 0)
+    if (operatorAB == 0)
     {
-        _result = *A+*B;
+        _result = A+B;
     }
     
-    if(*operatorAB == 1)
+    if(operatorAB == 1)
     {
-        _result = *A-*B;
+        _result = A-B;
     }
 
-    if(*operatorAB == 2)
+    if(operatorAB == 2)
     {
-        _result = *A * *B;
+        _result = A * B;
     }
 
-    if(*operatorAB == 3)
+    if(operatorAB == 3)
     {
-        if(*B == 0.0f){
-            BLE::Instance().shutdown();
+        if(B == 0.0f){
+            //BLE::Instance().shutdown();
         }
         else
         {
-            _result = *A / *B;
+            _result = A / B;
         }
     }
 
-    if(*operatorAB == 4)
+    if(operatorAB == 4)
     {
-        _result = pow(*A, *B); 
+        _result = pow(A, B); 
     }
 
-    if(*operatorAB == 5)
+    if(operatorAB == 5)
     {
-        if(*B == 0.0f)
-           BLE::Instance().shutdown();
-        _result = pow(*A, 1.0f/ *B);
+        _result = pow(A, 1.0f/B);
     }
          
-
-    *(float*)(resultBytes) = _result;
-    BLE::Instance().gattServer().write(readResult.getValueHandle(), resultBytes,sizeof(resultBytes));
+  
+  char buffer_res[50];
+   int n=sprintf (buffer_res, "%f", _result);
+   
+   
+   //mark end of the result
+   buffer_res[n] = '\0';
+   n += 1;
+   
+   usb.printf(" Result float %f", _result);
+   usb.printf( " Result: %s \r\n", buffer_res);
+   usb.printf( " Result size: %i \r\n", n);
+   
+   
+    BLE::Instance().gattServer().write(readResult.getValueHandle(),   (uint8_t*)buffer_res,      n);
 
 
 }
@@ -157,8 +198,6 @@ static void blue_init_completed(BLE::InitializationCompleteCallbackContext *para
     /* Setup services */
     usb.printf("[blue] initializing calculator service\r\n");
     ble.accumulateAdvertisingPayload(GapAdvertisingData::COMPLETE_LIST_16BIT_SERVICE_IDS, (uint8_t *)uuid16_list, sizeof(uuid16_list)); 
-
-   
 
     // Set up custom service
   GattCharacteristic *characteristics[] = {&readWriteA, &readWriteB, &writeOperator, &readResult};

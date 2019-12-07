@@ -23,11 +23,10 @@ EventQueue queue;
 int main()
 {
     usb.printf("[main] starting\r\n");
-    Morse morse(led1);
-    morse.puts("HI");
+   
 
     myblue_init();
-    jrs_start_thread();
+   
 
     usb.printf("[main] starting event queue\r\n");
     queue.dispatch_forever();
